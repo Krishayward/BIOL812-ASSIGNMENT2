@@ -1,0 +1,142 @@
+---
+title: "DataAnalysis"
+author: "Kristen Hayward"
+date: '2020-01-24'
+output: html_document
+---
+
+##PART II
+
+Load packages:
+```{r}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+```
+
+
+1. Read measurements.csv into an object in R called MData:
+```{r}
+MData<- read.csv("Data/measurements.csv", header = T)
+MData
+```
+
+2. Include functions from the Data Science Tutorial to do each of the following:
+
+a) Change the column names to shorter, 3-letter abbreviations:
+```{r}
+#use rename to change column titles - New name = old name
+MData<- rename(MData, Spp = Species, LbW = Limb.Width,
+               UnW = unitsW, LbL = Limb.Length, 
+               UnL = unitsL)
+```
+
+b) Add a new data column called Volume that calculates limb volume:
+```{r}
+#first I'm going to make sure all the units are the same - use ifelse function to change all those not in cm to cm 
+MData$LbW<- ifelse(MData$UnW == "cm", 1, 0.1)*MData$LbW
+MData$LbL<- ifelse(MData$UnL == "cm", 1, 0.1)*MData$LbL
+MData$UnW<- "cm"
+MData$UnL<- "cm"
+
+#make a new column with volume - limb is cylinder which has the formula V = pi*r2*h
+#I used the limb length as the height & the limb width as the diameter of the cylinder
+MData<- mutate(MData, Vol = pi*((LbW/2)^2)*LbL)
+```
+
+c) Group the species into 2 or more imaginary groups & add a column denoting these groups. I decided to separate the animals into two groups depending on their habitat (terrestrial or marine):
+```{r}
+#add column using the mutate function from dplyr
+MData<- mutate(MData, Hab = c("terrestrial","marine",
+              "marine","terrestrial",
+              "marine","terrestrial",
+              "terrestrial","terrestrial",
+              "terrestrial","terrestrial"))
+#make new dataset with data grouped by my new habitat variable
+SppHab<- group_by(MData,Hab)
+SppHab
+```
+
+d) Summarize the mean and SD length, width, and volume for each of my groups & present in table form:
+```{r}
+#use summarize function to generate means & SDs
+SumGroup<- summarize(SppHab, mean_L = mean(LbL), SD_L = sd(LbL),
+          mean_W = mean(LbW), SD_W = sd(LbW),
+          mean_V = mean(Vol), SD_V = sd(Vol))
+SumGroup
+```
+Here is my lovely table:
+
+Species Habitat | Mean limb length (cm) | SD of limb length (cm) | Mean limb width (cm) | SD of limb width (cm) | Mean limb volume (cm^3^) | SD of limb volume (cm^3^)
+-----------|--------|--------|--------|--------|--------|--------|
+marine | 86.96 | 73.85 | 4.23 | 5.37 | 180.40 | 90.72 
+terrestrial | 99.58 | 84.80 | 7.34 | 7.30 | 5730.05 | 7695.12
+
+However, can also make table kable function:
+```{r}
+#round it 
+SumGroup$mean_L<- round(SumGroup$mean_L, digits = 2)
+SumGroup$mean_W<- round(SumGroup$mean_W, digits = 2)
+SumGroup$mean_V<- round(SumGroup$mean_V, digits = 2)
+SumGroup$SD_L<- round(SumGroup$SD_L, digits = 2)
+SumGroup$SD_W<- round(SumGroup$SD_W, digits = 2)
+SumGroup$SD_V<- round(SumGroup$SD_V, digits = 2)
+
+kable(SumGroup, caption = "Table 1. Mean and standard deviations for limb width, length, and volume for terrestrial and marine species (n = 10).")
+```
+
+e) Plot width and length BUT embed the graph in R markdown file rather than creating separate PDF. Here, I just plot limb length against width to visualize a potential correlation:
+```{r}
+library(ggplot2)
+#load the custom theme
+cooltoo<- theme(
+  legend.position= "none",
+  axis.text.x= element_text(size=12, colour="black", face= "bold"),
+  axis.text.y= element_text(size=12, colour="black", face= "bold"),
+  axis.title.x= element_text(size=14, colour="black", vjust= +0.5, face= "bold"),
+  axis.title.y= element_text(size=14, colour="black", vjust=+1, face= "bold"),
+  panel.background= element_rect(fill="white", colour=NULL),
+  axis.line= element_line(colour="black", size=0.5),
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank()
+  )
+#create the plot
+ggplot(MData, aes(x = LbW, y = LbL))+
+  geom_point(size = 4, colour = "sienna4")+ #alter size & colour of data points
+  scale_x_continuous(name = "Limb width (cm)")+ #name the axes
+  scale_y_continuous(name = "Limb length (cm)")+
+  geom_smooth(method = "lm", se = FALSE, colour = "gray15", lwd = 1.5)+ #add a regression line 
+  cooltoo #add the custom theme 
+```
+
+f) Plot width and length, but only for species that have above-average volume:
+```{r}
+#select only the species with volume above the mean volume - use filter function to subset 
+AboveAVG<- filter(MData, Vol > mean(MData$Vol))
+
+#now plot limb length vs limb width (like above) but only for these species
+ggplot(AboveAVG, aes(x = LbW, y = LbL))+
+  geom_point(size = 4, colour = "thistle4")+ 
+  scale_x_continuous(name = "Limb width (cm)")+ 
+  scale_y_continuous(name = "Limb length (cm)")+
+  geom_smooth(method = "lm", se = FALSE, colour = "gray15", lwd = 1.5)+ 
+  cooltoo 
+```
+Only three points - not very interesting!
+
+g) Add a table showing only species and volume for only the species with below-average volume:
+```{r}
+#select only species with below average volume - use filter function to subset
+BelowAVG<- filter(MData, Vol < mean(MData$Vol))
+
+#round the digits
+BelowAVG$Vol<- round(BelowAVG$Vol, digits = 3)
+
+#make it into a dataframe for table 
+BelowAVG<- data.frame("Species" = BelowAVG$Spp,
+                      "Volume (cm^3)" = BelowAVG$Vol)
+
+#use kable function to make table or create in markdown text (below):
+kable(BelowAVG, caption = "Table 2. Species and their respective limb volumes in cm^3 for species with below average limb volumes from a random sample (n=10).")
+```
+
