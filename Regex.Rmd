@@ -1,0 +1,50 @@
+---
+title: "Regex"
+author: "Kristen Hayward"
+date: '2020-01-30'
+output: html_document
+---
+
+##WEEK 4 ASSIGNMENT
+
+3. Import file into object called MData:
+```{r}
+MData<- read.csv("Data/measurements.csv", header = T)
+MData
+```
+
+4. Use dplyr command AND regular expressions to add a new column called Sp that modifies the Species names with only the first letter and period. Because I originally had the common names for the species, I'm first going to switch those over to the common names: 
+```{r}
+library(dplyr)
+#change the common names to latin cos i'm dumb
+MData$Species<- sub("polar bear","Ursus maritimus", MData$Species)
+MData$Species<- sub("ringed seal","Pusa hispida",MData$Species)
+MData$Species<- sub("bearded seal","Erignathus barbatus", MData$Species)
+MData$Species<- sub("northern lemming","Synaptomys borealis", MData$Species)
+MData$Species<- sub("walrus","Odobenus rosmarus",MData$Species)
+MData$Species<- sub("grizzly bear","Ursus arctos",MData$Species)
+MData$Species<- sub("american black bear","Ursus americanus",MData$Species)
+MData$Species<- sub("koala","Phascolarctos cinereus",MData$Species)
+MData$Species<- sub("arctic fox","Vulpes lagopus",MData$Species)
+MData$Species<- sub("homo sapiens","Homo sapiens", MData$Species)
+
+#add the column using reg expressions & dplyr - use gsub to replace matches 
+#\\w = all words
+#\\w+ = 1 or more matches 
+#\\W = everything that isn't words
+#capture text i.e. all words (1 or more matches), & everything that isn't words => reprint with \\1
+#\\1\\. means replace each word with its first letter and . 
+MData<- MData %>% mutate(Sp = gsub("(\\w)(\\w+)(\\W)","\\1\\. ",Species))
+MData #check er out
+```
+
+5. Use a dplyr command to create a new dataset BUT with Sp column instead of the Species column, moved to the beginning in place of the original Species column:
+```{r}
+NewData<- MData %>% select(X,Sp,-Species, Limb.Width, unitsW,
+                           Limb.Length, unitsL)
+NewData #look at that
+```
+
+6. Review the unix commands - check!
+
+7. Knit your Rmd file to a html format.
